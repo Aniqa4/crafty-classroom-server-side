@@ -34,6 +34,13 @@ async function run() {
         const result= await cursor.toArray();
         res.send(result);
     })
+    //all classes
+    app.get("/classes", async(req,res)=>{
+        const query={role:'instructor'}
+        const cursor=collection.find(query);
+        const result= await cursor.toArray();
+        res.send(result);
+    })
 
 
     // Send a ping to confirm a successful connection
