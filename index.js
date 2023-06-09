@@ -43,6 +43,17 @@ async function run() {
             res.send(result);
         })
 
+        //all instructors
+        app.get("/allinstructors", async(req,res)=>{
+            const query= {role:"instructor"};
+            const options = {
+                projection: { name:1 , email: 1 ,photoURL:1},
+              };
+            const cursor =usersCollection.find(query, options)
+            const result= await cursor.toArray();
+            res.send(result)
+        })
+
 
 
         // Send a ping to confirm a successful connection
