@@ -26,8 +26,11 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
+        //collections
         const usersCollection = client.db('Crafty-classroom').collection('users');
         const classesCollection = client.db('Crafty-classroom').collection('classes');
+
+
 
         //all users
         app.get("/users", async (req, res) => {
@@ -44,23 +47,43 @@ async function run() {
         })
 
         //all instructors
-        app.get("/allinstructors", async(req,res)=>{
-            const query= {role:"instructor"};
+        app.get("/allinstructors", async (req, res) => {
+            const query = { role: "instructor" };
             const options = {
-                projection: { name:1 , email: 1 ,photoURL:1},
-              };
-            const cursor =usersCollection.find(query, options)
-            const result= await cursor.toArray();
+                projection: { name: 1, email: 1, photoURL: 1 },
+            };
+            const cursor = usersCollection.find(query, options)
+            const result = await cursor.toArray();
             res.send(result);
         })
 
         //all approved classes
-        app.get("/approvedClasses", async(req, res)=>{
-            const query={status: "approved"}
+        app.get("/approvedClasses", async (req, res) => {
+            const query = { status: "approved" }
             const cursor = classesCollection.find(query);
-            const result =await cursor.toArray();
+            const result = await cursor.toArray();
             res.send(result);
         })
+
+        //user role
+        app.get("/privateRouteSetting", async (req, res) => {
+            const query = { };
+            const options = {
+                projection: {role:1,email:1},
+            };
+            const cursor = usersCollection.find(query, options)
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+        //add user
+        app.post("/users", async (req, res)=>{
+            const newUser=req.body;
+            const result= await usersCollection.insertOne(newUser);
+            res.send(result);
+        })
+
+
 
 
 
