@@ -51,7 +51,15 @@ async function run() {
               };
             const cursor =usersCollection.find(query, options)
             const result= await cursor.toArray();
-            res.send(result)
+            res.send(result);
+        })
+
+        //all approved classes
+        app.get("/approvedClasses", async(req, res)=>{
+            const query={status: "approved"}
+            const cursor = classesCollection.find(query);
+            const result =await cursor.toArray();
+            res.send(result);
         })
 
 
