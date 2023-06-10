@@ -79,6 +79,21 @@ async function run() {
             res.send(result);
         })
 
+        //6 instructors
+        app.get("/sixInstructors", async (req, res) => {
+            const query = { role: "instructor" };
+            const options = {
+                // sort returned documents in ascending order by title (A->Z)
+                sort: { name: 1 },
+                // Include only the `title` and `imdb` fields in each returned document
+                projection: { name: 1,email:1, photoURL: 1 },
+              };
+            const cursor = usersCollection.find(query,options).limit(6);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+
         //user role
         app.get("/privateRouteSetting", async (req, res) => {
             const query = { };
