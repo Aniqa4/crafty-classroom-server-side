@@ -29,6 +29,7 @@ async function run() {
         //collections
         const usersCollection = client.db('Crafty-classroom').collection('users');
         const classesCollection = client.db('Crafty-classroom').collection('classes');
+        const StudentsCollection = client.db('Crafty-classroom').collection('studentsData');
 
 
 
@@ -109,6 +110,13 @@ async function run() {
         app.post("/users", async (req, res)=>{
             const newUser=req.body;
             const result= await usersCollection.insertOne(newUser);
+            res.send(result);
+        })
+
+        //add student data
+        app.post("/studentsData", async (req, res)=>{
+            const selectedClass=req.body;
+            const result= await StudentsCollection.insertOne(selectedClass);
             res.send(result);
         })
 
