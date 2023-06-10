@@ -29,7 +29,7 @@ async function run() {
         //collections
         const usersCollection = client.db('Crafty-classroom').collection('users');
         const classesCollection = client.db('Crafty-classroom').collection('classes');
-        const StudentsCollection = client.db('Crafty-classroom').collection('studentsData');
+        const studentsCollection = client.db('Crafty-classroom').collection('studentsData');
 
 
 
@@ -106,6 +106,14 @@ async function run() {
             res.send(result);
         })
 
+        //get all students data
+        app.get("/studentsData", async (req, res) => {
+            const cursor = studentsCollection.find()
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+
         //add user
         app.post("/users", async (req, res)=>{
             const newUser=req.body;
@@ -116,7 +124,7 @@ async function run() {
         //add student data
         app.post("/studentsData", async (req, res)=>{
             const selectedClass=req.body;
-            const result= await StudentsCollection.insertOne(selectedClass);
+            const result= await studentsCollection.insertOne(selectedClass);
             res.send(result);
         })
 
