@@ -65,6 +65,20 @@ async function run() {
             res.send(result);
         })
 
+        //top 6 classes
+        app.get("/popularClasses", async (req, res) => {
+            const query = { status: "approved" };
+            const options = {
+                // sort returned documents in ascending order by title (A->Z)
+                sort: { totalEnrolledStudents: -1 },
+                // Include only the `title` and `imdb` fields in each returned document
+                projection: { className: 1,classImage:1, totalEnrolledStudents: 1 },
+              };
+            const cursor = classesCollection.find(query,options).limit(6);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
         //user role
         app.get("/privateRouteSetting", async (req, res) => {
             const query = { };
