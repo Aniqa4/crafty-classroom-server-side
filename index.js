@@ -1,10 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const jwt =require('jsonwebtoken')
+const stripe = require("stripe")(process.env.Payment_Gateway_PK)
 require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 
 //middleware
@@ -46,7 +47,7 @@ async function run() {
         //jwt
         app.post('/jwt',(req,res)=>{
             const user =req.body;
-            const token= jwt.sign(user, process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1h'});
+            const token= jwt.sign(user, process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1hr'});
             res.send({token});
         })
 
@@ -122,11 +123,40 @@ async function run() {
         })
 
 
-        //get all students data
-        app.get("/studentsData", async (req, res) => {
-            const cursor = studentsCollection.find()
+         //all students data
+         app.get("/studentsData",  async (req, res) => {
+            const cursor = studentsCollection.find();
             const result = await cursor.toArray();
             res.send(result);
+    
+        })
+
+        //get students data - pending payment
+        app.get("/selectedClasses",  async (req, res) => {
+            const query = { paymentStatus: "pending" };
+            const cursor = studentsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+    
+        })
+
+        //get single student data - pending payment
+        app.get("/payment/:id",  async (req, res) => {
+            const id=req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const cursor = studentsCollection.findOne(query);
+            const result = await cursor.toArray();
+            res.send(result);
+    
+        })
+        
+        //get students data - payment status -paid
+        app.get("/enrolledClasses", async (req, res) => {
+            const query = { paymentStatus: "paid" };
+            const cursor = studentsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+            
         })
 
 
@@ -137,12 +167,53 @@ async function run() {
             res.send(result);
         })
 
-        //add student data
+        //add students data to collection
         app.post("/studentsData", async (req, res)=>{
             const selectedClass=req.body;
             const result= await studentsCollection.insertOne(selectedClass);
             res.send(result);
         })
+
+
+        //create payment intent
+        app.post("/create-payment-intent", async (req, res) => {
+            const { items } = req.body;
+            const amount=price*100;
+          
+            // Create a PaymentIntent with the order amount and currency
+            const paymentIntent = await stripe.paymentIntents.create({
+              amount: amount,
+              currency: "usd",
+              automatic_payment_methods: [card]
+            });
+          
+            res.send({
+              clientSecret: paymentIntent.client_secret,
+            });
+          });
+
+        //add new class
+        app.post("/newClass", async (req, res)=>{
+            const newClass=req.body;
+            const result= await classesCollection.insertOne(newClass);
+            res.send(result);
+        })
+         
+        //delete selected classes
+        app.delete('/selectedClasses/:id', async(req,res)=>{
+            const id=req.params.id;
+            const query= {_id:new ObjectId(id)};
+            const result = await studentsCollection.deleteOne(query);
+            res.send(result);
+        })
+        
+        app.get('/selectedClasses/:id', async(req,res)=>{
+            const id=req.params.id;
+            const query= {_id:new ObjectId(id)};
+            const result = await studentsCollection.findOne(query);
+            res.send(result);
+        })
+        
 
 
 
