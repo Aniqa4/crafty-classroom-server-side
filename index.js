@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const jwt =require('jsonwebtoken')
+const jwt = require('jsonwebtoken')
 const stripe = require("stripe")(process.env.Payment_Gateway_PK)
 require('dotenv').config();
 const app = express();
@@ -13,17 +13,17 @@ app.use(cors())
 app.use(express.json());
 
 
-const verifyJWT=(req,res,next)=>{
-    const authorization =req.headers.authorization;
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization;
     if (!authorization) {
-        return res.status(401).send({error :true, message :'unauthorized access'})
+        return res.status(401).send({ error: true, message: 'unauthorized access' })
     }
-    const token =authorization.split(' ')[1];
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(error,decoded)=>{
-        if(error){
-            return res.status(403).send({error: true, message:'unauthorized access'})
+    const token = authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
+        if (error) {
+            return res.status(403).send({ error: true, message: 'unauthorized access' })
         }
-        req.decoded=decoded;
+        req.decoded = decoded;
         next();
     })
 }
@@ -45,10 +45,10 @@ async function run() {
         //await client.connect();
 
         //jwt
-        app.post('/jwt',(req,res)=>{
-            const user =req.body;
-            const token= jwt.sign(user, process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1hr'});
-            res.send({token});
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
+            res.send({ token });
         })
 
         //collections
@@ -73,6 +73,14 @@ async function run() {
             res.send(result);
         })
 
+        //single class
+        app.get("/allclasses/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await classesCollection.findOne(query);
+            res.send(result);
+
+        })
 
 
         //all instructors for instructors route
@@ -101,9 +109,9 @@ async function run() {
                 // sort returned documents in ascending order by title (A->Z)
                 sort: { totalEnrolledStudents: -1 },
                 // Include only the `title` and `imdb` fields in each returned document
-                projection: { className: 1,classImage:1, totalEnrolledStudents: 1 },
-              };
-            const cursor = classesCollection.find(query,options).limit(6);
+                projection: { className: 1, classImage: 1, totalEnrolledStudents: 1 },
+            };
+            const cursor = classesCollection.find(query, options).limit(6);
             const result = await cursor.toArray();
             res.send(result);
         })
@@ -115,62 +123,61 @@ async function run() {
                 // sort returned documents in ascending order by title (A->Z)
                 sort: { name: 1 },
                 // Include only the `title` and `imdb` fields in each returned document
-                projection: { name: 1,email:1, photoURL: 1 },
-              };
-            const cursor = usersCollection.find(query,options).limit(6);
+                projection: { name: 1, email: 1, photoURL: 1 },
+            };
+            const cursor = usersCollection.find(query, options).limit(6);
             const result = await cursor.toArray();
             res.send(result);
         })
 
 
-         //all students data
-         app.get("/studentsData",  async (req, res) => {
+        //all students data
+        app.get("/studentsData", async (req, res) => {
             const cursor = studentsCollection.find();
             const result = await cursor.toArray();
             res.send(result);
-    
+
         })
 
         //get students data - pending payment
-        app.get("/selectedClasses",  async (req, res) => {
+        app.get("/selectedClasses", async (req, res) => {
             const query = { paymentStatus: "pending" };
             const cursor = studentsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
-    
+
         })
 
         //get single student data - pending payment
-        app.get("/payment/:id",  async (req, res) => {
-            const id=req.params.id;
+        app.get("/payment/:id", async (req, res) => {
+            const id = req.params.id;
             const query = { _id: new ObjectId(id) };
-            const cursor = studentsCollection.findOne(query);
-            const result = await cursor.toArray();
+            const result = await studentsCollection.findOne(query);
             res.send(result);
-    
+
         })
-        
+
         //get students data - payment status -paid
         app.get("/enrolledClasses", async (req, res) => {
             const query = { paymentStatus: "paid" };
             const cursor = studentsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
-            
+
         })
 
 
         //add user
-        app.post("/users", async (req, res)=>{
-            const newUser=req.body;
-            const result= await usersCollection.insertOne(newUser);
+        app.post("/users", async (req, res) => {
+            const newUser = req.body;
+            const result = await usersCollection.insertOne(newUser);
             res.send(result);
         })
 
         //add students data to collection
-        app.post("/studentsData", async (req, res)=>{
-            const selectedClass=req.body;
-            const result= await studentsCollection.insertOne(selectedClass);
+        app.post("/studentsData", async (req, res) => {
+            const selectedClass = req.body;
+            const result = await studentsCollection.insertOne(selectedClass);
             res.send(result);
         })
 
@@ -178,42 +185,62 @@ async function run() {
         //create payment intent
         app.post("/create-payment-intent", async (req, res) => {
             const { items } = req.body;
-            const amount=price*100;
-          
+            const amount = price * 100;
+
             // Create a PaymentIntent with the order amount and currency
             const paymentIntent = await stripe.paymentIntents.create({
-              amount: amount,
-              currency: "usd",
-              automatic_payment_methods: [card]
+                amount: amount,
+                currency: "usd",
+                automatic_payment_methods: [card]
             });
-          
+
             res.send({
-              clientSecret: paymentIntent.client_secret,
+                clientSecret: paymentIntent.client_secret,
             });
-          });
+        });
 
         //add new class
-        app.post("/newClass", async (req, res)=>{
-            const newClass=req.body;
-            const result= await classesCollection.insertOne(newClass);
+        app.post("/newClass", async (req, res) => {
+            const newClass = req.body;
+            const result = await classesCollection.insertOne(newClass);
             res.send(result);
         })
-         
+
+
+        //add new class
+        app.put("/allclasses/:id", async (req, res) => {
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const options ={upsert :true}
+            const updateClass =req.body;
+            const updatedClass = {
+                $set: {
+                    className: updateClass.className,
+                    classImage: updateClass.classImage,
+                    price:updateClass.price,
+                    availableSeats:updateClass.availableSeats
+
+                }
+            };
+            const result = await classesCollection.updateOne(filter,updatedClass,options);
+            res.send(result);
+        })
+
         //delete selected classes
-        app.delete('/selectedClasses/:id', async(req,res)=>{
-            const id=req.params.id;
-            const query= {_id:new ObjectId(id)};
+        app.delete('/selectedClasses/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
             const result = await studentsCollection.deleteOne(query);
             res.send(result);
         })
-        
-        app.get('/selectedClasses/:id', async(req,res)=>{
-            const id=req.params.id;
-            const query= {_id:new ObjectId(id)};
+
+        app.get('/selectedClasses/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
             const result = await studentsCollection.findOne(query);
             res.send(result);
         })
-        
+
 
 
 
