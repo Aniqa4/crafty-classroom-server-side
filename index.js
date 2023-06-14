@@ -12,7 +12,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 app.use(cors())
 app.use(express.json());
 
-
+//verify JWT
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization;
     if (!authorization) {
@@ -41,49 +41,63 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        // Connect the client to the server	(optional starting in v4.7)
         //await client.connect();
 
         //jwt
         app.post('/jwt', (req, res) => {
             const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
             res.send({ token });
         })
 
-        //collections
+        //collections-----------------------------------------------------------------------
         const usersCollection = client.db('Crafty-classroom').collection('users');
         const classesCollection = client.db('Crafty-classroom').collection('classes');
         const studentsCollection = client.db('Crafty-classroom').collection('studentsData');
+        //----------------------------------------x------------------------------------------
 
+        //-----------------------------------USERS DATA COLLECTION---------------------------
 
-
-        //all users
+        //get all users data
         app.get("/users", async (req, res) => {
             console.log(req.headers);
             const cursor = usersCollection.find();
             const result = await cursor.toArray();
             res.send(result);
         })
-
-        //all classes
-        app.get("/allclasses", async (req, res) => {
-            const cursor = classesCollection.find();
+        
+        //get users for admin dashboard
+        app.get("/manageUsers", verifyJWT, async (req, res) => {
+            console.log(req.headers);
+            const cursor = usersCollection.find();
             const result = await cursor.toArray();
             res.send(result);
         })
 
-        //single class
-        app.get("/allclasses/:id", async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await classesCollection.findOne(query);
+        
+        //get six instructors data from all users
+        app.get("/sixInstructors", async (req, res) => {
+            const query = { role: "instructor" };
+            const options = {    
+                projection: { name: 1, email: 1, photoURL: 1 },
+            };
+            const cursor = usersCollection.find(query, options).limit(6);
+            const result = await cursor.toArray();
             res.send(result);
-
         })
 
+        //get three students data from all users
+        app.get("/threeStudents", async (req, res) => {
+            const query = { role: "student" };
+            const options = { 
+                projection: { name: 1, email: 1, photoURL: 1 },
+            };
+            const cursor = usersCollection.find(query, options).limit(3);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
 
-        //all instructors for instructors route
+        //get only instructors data from all users
         app.get("/allinstructors", async (req, res) => {
             const query = { role: "instructor" };
             const options = {
@@ -94,7 +108,49 @@ async function run() {
             res.send(result);
         })
 
-        //all approved classes
+        //add new user
+        app.post("/users", async (req, res) => {
+            const newUser = req.body;
+            const result = await usersCollection.insertOne(newUser);
+            res.send(result);
+        })
+
+        //update user role
+        app.patch("/updateRole/:id", async (req,res)=>{
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const updateRole =req.body;
+            const updatedRole = {
+                $set: {
+                    role:updateRole.role
+
+                }
+            };
+            const result = await usersCollection.updateOne(filter,updatedRole);
+            res.send(result);
+        })
+
+        //-------------------------------------x---------------------------------------------
+
+        //-------------------------------CLASSES DATA COLLECTION-----------------------------
+
+        //get all classes data
+        app.get("/allclasses", verifyJWT, async (req, res) => {
+            const cursor = classesCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+        //get single class data basen on id
+        app.get("/allclasses/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await classesCollection.findOne(query);
+            res.send(result);
+
+        })
+
+        //get approved classes data
         app.get("/approvedClasses", async (req, res) => {
             const query = { status: "approved" }
             const cursor = classesCollection.find(query);
@@ -102,36 +158,80 @@ async function run() {
             res.send(result);
         })
 
-        //top 6 classes
+        //get popular classes data
         app.get("/popularClasses", async (req, res) => {
-            const query = { status: "approved" };
-            const options = {
-                // sort returned documents in ascending order by title (A->Z)
-                sort: { totalEnrolledStudents: -1 },
-                // Include only the `title` and `imdb` fields in each returned document
-                projection: { className: 1, classImage: 1, totalEnrolledStudents: 1 },
-            };
-            const cursor = classesCollection.find(query, options).limit(6);
+            const query = { status: "approved" }
+            const options={
+                sort: {totalEnrolledStudents: -1},
+                projection:{className:1,classImage:1, totalEnrolledStudents:1}
+            }
+            const cursor = classesCollection.find(query,options).limit(6);
             const result = await cursor.toArray();
             res.send(result);
         })
 
-        //6 instructors
-        app.get("/sixInstructors", async (req, res) => {
-            const query = { role: "instructor" };
-            const options = {
-                // sort returned documents in ascending order by title (A->Z)
-                sort: { name: 1 },
-                // Include only the `title` and `imdb` fields in each returned document
-                projection: { name: 1, email: 1, photoURL: 1 },
+        //add a new class
+        app.post("/newClass", async (req, res) => {
+            const newClass = req.body;
+            const result = await classesCollection.insertOne(newClass);
+            res.send(result);
+        })
+
+        //update a class
+        app.put("/allclasses/:id", async (req, res) => {
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const options ={upsert :true}
+            const updateClass =req.body;
+            const updatedClass = {
+                $set: {
+                    className: updateClass.className,
+                    classImage: updateClass.classImage,
+                    price:updateClass.price,
+                    availableSeats:updateClass.availableSeats
+
+                }
             };
-            const cursor = usersCollection.find(query, options).limit(6);
-            const result = await cursor.toArray();
+            const result = await classesCollection.updateOne(filter,updatedClass,options);
+            res.send(result);
+        })
+
+        //update class status(aprrove and deny)
+        app.patch("/updateClassStatus/:id", async (req,res)=>{
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const updateStatus =req.body;
+            const updatedStatus = {
+                $set: {
+                    status:updateStatus.status
+
+                }
+            };
+            const result = await classesCollection.updateOne(filter,updatedStatus);
+            res.send(result);
+        })
+
+        //update feedback
+        app.patch("/updateFeedback/:id", async (req,res)=>{
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const updateFeedback =req.body;
+            const updatedFeedback = {
+                $set: {
+                    feedback:updateFeedback.feedback
+
+                }
+            };
+            const result = await classesCollection.updateOne(filter,updatedFeedback);
             res.send(result);
         })
 
 
-        //all students data
+        //------------------------------------------x--------------------------------------------
+
+        //----------------------------------STUDENTS DATA COLLECTION------------------------------
+
+        //get all students data
         app.get("/studentsData", async (req, res) => {
             const cursor = studentsCollection.find();
             const result = await cursor.toArray();
@@ -140,7 +240,7 @@ async function run() {
         })
 
         //get students data - pending payment
-        app.get("/selectedClasses", async (req, res) => {
+        app.get("/selectedClasses", verifyJWT,  async (req, res) => {
             const query = { paymentStatus: "pending" };
             const cursor = studentsCollection.find(query);
             const result = await cursor.toArray();
@@ -148,6 +248,22 @@ async function run() {
 
         })
 
+        //add a student data to the collection
+        app.post("/studentsData", async (req, res) => {
+            const selectedClass = req.body;
+            const result = await studentsCollection.insertOne(selectedClass);
+            res.send(result);
+        })
+
+        //delete selected classes
+        app.delete('/selectedClasses/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await studentsCollection.deleteOne(query);
+            res.send(result);
+        })
+        
+        //----------------payment--------------------
         //get single student data - pending payment
         app.get("/payment/:id", async (req, res) => {
             const id = req.params.id;
@@ -158,7 +274,7 @@ async function run() {
         })
 
         //get students data - payment status -paid
-        app.get("/enrolledClasses", async (req, res) => {
+        app.get("/enrolledClasses", verifyJWT, async (req, res) => {
             const query = { paymentStatus: "paid" };
             const cursor = studentsCollection.find(query);
             const result = await cursor.toArray();
@@ -166,20 +282,6 @@ async function run() {
 
         })
 
-
-        //add user
-        app.post("/users", async (req, res) => {
-            const newUser = req.body;
-            const result = await usersCollection.insertOne(newUser);
-            res.send(result);
-        })
-
-        //add students data to collection
-        app.post("/studentsData", async (req, res) => {
-            const selectedClass = req.body;
-            const result = await studentsCollection.insertOne(selectedClass);
-            res.send(result);
-        })
 
 
         //create payment intent
@@ -199,48 +301,14 @@ async function run() {
             });
         });
 
-        //add new class
-        app.post("/newClass", async (req, res) => {
-            const newClass = req.body;
-            const result = await classesCollection.insertOne(newClass);
-            res.send(result);
-        })
 
-
-        //add new class
-        app.put("/allclasses/:id", async (req, res) => {
-            const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
-            const options ={upsert :true}
-            const updateClass =req.body;
-            const updatedClass = {
-                $set: {
-                    className: updateClass.className,
-                    classImage: updateClass.classImage,
-                    price:updateClass.price,
-                    availableSeats:updateClass.availableSeats
-
-                }
-            };
-            const result = await classesCollection.updateOne(filter,updatedClass,options);
-            res.send(result);
-        })
-
-        //delete selected classes
-        app.delete('/selectedClasses/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await studentsCollection.deleteOne(query);
-            res.send(result);
-        })
-
-        app.get('/selectedClasses/:id', async (req, res) => {
+        /* app.get('/selectedClasses/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await studentsCollection.findOne(query);
             res.send(result);
         })
-
+ */
 
 
 
@@ -250,7 +318,6 @@ async function run() {
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
-        // Ensures that the client will close when you finish/error
         //await client.close();
     }
 }
